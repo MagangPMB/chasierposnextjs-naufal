@@ -1,10 +1,12 @@
 import Head from "next/head";
 import Image from "next/image";
-import { useState } from "react";
+import { Fragment, useState } from "react";
+import { Dialog, Transition } from "@headlessui/react";
+import ModalPopup from "@/components/modalPopup";
 
 export default function Home() {
   //data products
-  const products = [
+  const dataProducts = [
     {
       id: 1,
       name: "Espresso",
@@ -67,20 +69,36 @@ export default function Home() {
     },
   ];
 
+  const [products, setProducts] = useState(dataProducts);
+
   const [cart, setCart] = useState([]);
   const [inputId, setInputId] = useState();
   const [inputBayar, setInputBayar] = useState();
+  const [kembalian, setKembalian] = useState(0);
+  const [inputName, setInputName] = useState();
+  const [inputPrice, setInputPrice] = useState();
+  const [inputStock, setInputStock] = useState();
+
+  //modal
+  const [open, setOpen] = useState(false);
+  const [type, setType] = useState("success");
+  const [message, setMessage] = useState("Belum Input Harga");
+  const [addNewModal, setAddNewModal] = useState(false);
 
   let totalHarga = cart.reduce((a, b) => a + b.price, 0);
 
   const addToCart = (id) => {
     if (!id) {
-      alert("Input Id Product");
+      setOpen(true);
+      setType("error");
+      setMessage("Input Id Product");
       return;
     }
 
     if (products.find((product) => product.id == id) == undefined) {
-      alert("Product not found");
+      setOpen(true);
+      setType("error");
+      setMessage("Cant Find Product");
       return;
     }
     const product = products.find((product) => product.id == id);
@@ -90,14 +108,55 @@ export default function Home() {
 
   const handleBayar = () => {
     if (!inputBayar) {
-      alert("Input Nominal Bayar");
+      setOpen(true);
+      setType("error");
+      setMessage("Input Nominal");
       return;
     }
     if (inputBayar < totalHarga) {
-      alert("Nominal Bayar Kurang");
+      setOpen(true);
+      setType("error");
+      setMessage("Sorry Money Not Enough");
       return;
     }
-    alert("Kembalian: " + (inputBayar - totalHarga));
+    setOpen(true);
+    setType("success");
+    setMessage("Berhasil");
+    setKembalian(inputBayar - totalHarga);
+    setCart([]);
+    setInputBayar("");
+    setInputId("");
+  };
+
+  const handleDelete = (id) => {
+    const newCart = cart.filter((item) => item.id !== id);
+    setCart(newCart);
+  };
+
+  const addNewProduct = () => {
+    if (!inputName || !inputPrice || !inputStock) {
+      setOpen(true);
+      setAddNewModal(false);
+      setType("error");
+      setMessage("Input All Field");
+      return;
+    }
+    const newProduct = {
+      id: products.length + 1,
+      name: inputName,
+      price: inputPrice,
+      stock: inputStock,
+    };
+    setProducts([...products, newProduct]);
+    setAddNewModal(false);
+    setInputName("");
+    setInputPrice("");
+    setInputStock("");
+  };
+
+  const handleDeleteProduct = (id) => {
+    const newProducts = products.filter((item) => item.id !== id);
+    setProducts(newProducts);
   };
 
   return (
@@ -108,66 +167,283 @@ export default function Home() {
         <meta name='viewport' content='width=device-width, initial-scale=1' />
         <link rel='icon' href='/favicon.ico' />
       </Head>
-      <div className='mt-10 w-3/4 mx-auto'>
-        <div className='flex flex-col'>
-          <label htmlFor='name'>Id Products</label>
-          <div className='flex'>
-            <input
-              type='text'
-              className='border border-gray-300 rounded-md p-2'
-              value={inputId}
-              onChange={(e) => setInputId(e.target.value)}
-            />
-            <button
-              onClick={() => addToCart(inputId)}
-              className='bg-blue-500 text-white rounded-md p-2'>
-              Add to Cart
-            </button>
-          </div>
-        </div>
-        <h1 className='text-lg font-bold'>Cart:</h1>
-        {cart
-          .filter((item, index, self) => {
-            return (
-              index ===
-              self.findIndex((t) => {
-                return t.id === item.id;
-              })
-            );
-          })
-          .map((item, index) => (
-            <div key={index}>
-              <p>{item.name}</p>
-              <p>{item.price}</p>
-              <p>
-                Quantity:{" "}
-                {cart.filter((cartItem) => cartItem.id == item.id).length}
-              </p>
-              <hr></hr>
+      <div
+        className='relative z-10'
+        aria-labelledby='slide-over-title'
+        role='dialog'
+        aria-modal='true'>
+        <div className='h-full flex mt-10 flex-wrap pl-[150px] gap-3 bg-opacity-75 transition-opacity w-[995px]'>
+          {products.map((product) => (
+            <div class='z-50 px-5 py-3 bg-white relative w-1/4 border border-indigo-600 rounded'>
+              <div class='flex justify-between'>
+                <div>
+                  <h3 class='text-sm text-gray-700'>
+                    <p>
+                      {product.name.length > 10
+                        ? product.name.slice(0, 10) + "..."
+                        : product.name}
+                    </p>
+                  </h3>
+                  <p class='mt-1 text-sm text-gray-500'>id: {product.id}</p>
+                </div>
+                <div>
+                  <p class='text-sm font-medium text-gray-900'>
+                    IDR {product.price.toLocaleString("id-ID")}
+                  </p>
+                  <button
+                    onClick={() => handleDeleteProduct(product.id)}
+                    type='button'
+                    className='font-medium text-red-600 hover:text-red-500 z-50'>
+                    Remove
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
-        <p>
-          <b>Total:</b> {totalHarga}
-        </p>
-        {cart.length == 0 && <p>Cart is empty</p>}
-        {JSON.stringify(cart)}
-        <div className='flex flex-col'>
-          <label htmlFor='name'>Nominal Bayar</label>
-          <div className='flex'>
-            <input
-              type='text'
-              className='border border-gray-300 rounded-md p-2'
-              value={inputBayar}
-              onChange={(e) => setInputBayar(e.target.value)}
-            />
-            <button
-              onClick={() => handleBayar()}
-              className='bg-blue-500 text-white rounded-md p-2'>
-              Bayar
-            </button>
+
+          <div className='fixed inset-0 overflow-hidden'>
+            <div className='absolute inset-0 overflow-hidden'>
+              <div className='pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10'>
+                <div className='pointer-events-auto w-screen max-w-md'>
+                  <div className='flex h-full flex-col overflow-y-scroll bg-white shadow-xl'>
+                    <div className='flex-1 overflow-y-auto py-6 px-4 sm:px-6'>
+                      <div className='flex items-center justify-between'>
+                        <h2
+                          className='text-lg font-medium text-gray-900'
+                          id='slide-over-title'>
+                          Shopping Cart
+                        </h2>
+                        <button
+                          onClick={() => setAddNewModal(true)}
+                          className='rounded-md border border-indigo-600 px-6 py-3 text-base font-medium text-indigo-600 shadow-sm'>
+                          New Product
+                        </button>
+                      </div>
+                      <label
+                        for='search'
+                        className='mb-2 text-sm font-medium text-gray-900 sr-only dark:text-white'>
+                        Search
+                      </label>
+                      <div className='relative'>
+                        <div className='absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none'>
+                          <svg
+                            aria-hidden='true'
+                            className='w-5 h-5 text-gray-500 dark:text-gray-400'
+                            fill='none'
+                            stroke='currentColor'
+                            viewBox='0 0 24 24'
+                            xmlns='http://www.w3.org/2000/svg'>
+                            <path
+                              stroke-linecap='round'
+                              stroke-linejoin='round'
+                              stroke-width='2'
+                              d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'></path>
+                          </svg>
+                        </div>
+                        <input
+                          className='block mt-5 w-full p-4 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-indigo-500 focus:border-indigo-500 '
+                          placeholder='Input Id Product'
+                          value={inputId}
+                          onChange={(e) => setInputId(e.target.value)}
+                        />
+                        <button
+                          onClick={() => addToCart(inputId)}
+                          type='submit'
+                          className='text-white absolute right-2.5 bottom-2.5 bg-indigo-700 hover:bg-indigo-800 focus:ring-4 focus:outline-none focus:ring-indigo-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-indigo-600 dark:hover:bg-indigo-700 dark:focus:ring-indigo-800'>
+                          Input
+                        </button>
+                      </div>
+
+                      <div className='mt-8'>
+                        <div className='flow-root'>
+                          <ul
+                            role='list'
+                            className='-my-6 divide-y divide-gray-200'>
+                            {cart
+                              .filter((item, index, self) => {
+                                return (
+                                  index ===
+                                  self.findIndex((t) => {
+                                    return t.id === item.id;
+                                  })
+                                );
+                              })
+                              .map((item, index) => (
+                                <li key={index} className='flex py-6'>
+                                  <div className='ml-4 flex flex-1 flex-col'>
+                                    <div>
+                                      <div className='flex justify-between text-base font-medium text-gray-900'>
+                                        <h3>
+                                          <p>{item.name}</p>
+                                        </h3>
+                                        <p className='ml-4'>
+                                          IDR{" "}
+                                          {item.price.toLocaleString("id-ID")}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className='flex flex-1 items-end justify-between text-sm'>
+                                      <p className='text-gray-500'>
+                                        Qty{" "}
+                                        {
+                                          cart.filter(
+                                            (cartItem) => cartItem.id == item.id
+                                          ).length
+                                        }
+                                      </p>
+                                      <div className='flex'>
+                                        <button
+                                          onClick={() => handleDelete(item.id)}
+                                          type='button'
+                                          className='font-medium text-red-600 hover:text-red-500'>
+                                          Remove
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </li>
+                              ))}
+                            {cart.length == 0 && (
+                              <li className='flex py-6'>
+                                <div className='ml-4 flex flex-1 flex-col'>
+                                  <div>
+                                    <div className='flex justify-between text-base font-medium text-gray-900'>
+                                      <h3>
+                                        <p>Cart is Empty</p>
+                                      </h3>
+                                    </div>
+                                  </div>
+                                </div>
+                              </li>
+                            )}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className='border-t border-gray-200 py-6 px-4 sm:px-6'>
+                      <div className='flex justify-between text-base font-medium text-gray-900'>
+                        <p>Subtotal</p>
+                        <p>IDR {totalHarga.toLocaleString("id-ID")}</p>
+                      </div>
+                      <p className='mt-0.5 text-sm text-gray-500'>
+                        Make sure to check before proceed
+                      </p>
+                      <label
+                        for='website-admin'
+                        className='block mb-2 font-medium text-gray-900 mt-5'>
+                        Input Amount Of Pay
+                      </label>
+                      <div className='flex'>
+                        <span className='inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-md '>
+                          IDR
+                        </span>
+                        <input
+                          value={inputBayar}
+                          onChange={(e) => setInputBayar(e.target.value)}
+                          type='text'
+                          placeholder='500000'
+                          className='rounded-none rounded-r-lg bg-gray-50 border text-gray-900 focus:ring-indigo-500 focus:border-indigo-500 block flex-1 min-w-0 w-full text-sm border-gray-300 p-2.5  '
+                        />
+                      </div>
+                      <div className='mt-6'>
+                        <button
+                          disabled={cart.length == 0}
+                          onClick={() => {
+                            handleBayar();
+                          }}
+                          className='w-full flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700'>
+                          Checkout
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+      {open && (
+        <ModalPopup
+          open={open}
+          setOpen={setOpen}
+          kembalian={kembalian}
+          type={type}
+          message={message}
+        />
+      )}
+      {addNewModal && (
+        <div
+          className={`relative z-10 `}
+          aria-labelledby='modal-title'
+          role='dialog'
+          aria-modal='true'>
+          <div className='fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity'></div>
+
+          <div className='fixed inset-0 z-10 overflow-y-auto'>
+            <div className='flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0'>
+              <div className='relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg'>
+                <div className='bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4'>
+                  <div className='sm:flex sm:items-start'>
+                    <div className='mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left'>
+                      <div className='mt-2'>
+                        <p className='text-lg font-medium leading-6 text-gray-900 '>
+                          Add New Product
+                        </p>
+                      </div>
+                      <div className=''>
+                        <label
+                          for='website-admin'
+                          className='block mb-1 text-gray-900 mt-5'>
+                          Product Name
+                        </label>
+                        <input
+                          onChange={(e) => setInputName(e.target.value)}
+                          type='text'
+                          className=' rounded-lg bg-gray-50 border text-gray-900 focus:ring-indigo-500 focus:border-indigo-500 block flex-1  text-sm border-gray-300 p-2.5  '
+                        />
+                      </div>
+                      <div className=''>
+                        <label
+                          for='website-admin'
+                          className='block mb-1  text-gray-900 mt-2'>
+                          Product Price
+                        </label>
+                        <input
+                          onChange={(e) => setInputPrice(e.target.value)}
+                          type='text'
+                          className=' rounded-lg bg-gray-50 border text-gray-900 focus:ring-indigo-500 focus:border-indigo-500 text-sm border-gray-300 p-2.5  '
+                        />
+                      </div>
+                      <div className=''>
+                        <label
+                          for='website-admin'
+                          className='block mb-1  text-gray-900 mt-2'>
+                          Product Stock
+                        </label>
+                        <input
+                          onChange={(e) => setInputStock(e.target.value)}
+                          type='text'
+                          className=' rounded-lg bg-gray-50 border text-gray-900 focus:ring-indigo-500 focus:border-indigo-500 block flex-1  text-sm border-gray-300 p-2.5  '
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className='bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6'>
+                  <button
+                    onClick={() => addNewProduct()}
+                    type='button'
+                    className={`bg-indigo-600  inline-flex w-full justify-center rounded-md border border-transparent px-4 py-2 text-base font-medium text-white shadow-sm  focus:outline-none focus:ring-2  focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm`}>
+                    Add Product
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
